@@ -15,13 +15,13 @@ export default function skillManager(pi) {
             name: Type.Optional(Type.String({
                 description: 'Skill name (required for import, activate, deactivate, remove)',
             })),
-            source: Type.Optional(Type.String({
+            source: Type.Optional(Type.Union([Type.Literal('path'), Type.Literal('kb')], {
                 description: 'Source type for import: "path" or "kb" (default: "path")',
             })),
             ref: Type.Optional(Type.String({
                 description: 'Source reference — path to SKILL.md for "path" source, article slug for "kb" source',
             })),
-            scope: Type.Optional(Type.String({
+            scope: Type.Optional(Type.Union([Type.Literal('user'), Type.Literal('project')], {
                 description: 'Activation scope: "user" (default) or "project"',
             })),
             content: Type.Optional(Type.String({
