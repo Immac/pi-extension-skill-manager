@@ -27,6 +27,16 @@ function writeRegistry(reg) {
     ensureVault();
     fs.writeFileSync(REGISTRY_PATH, JSON.stringify(reg, null, 2), 'utf-8');
 }
+/**
+ * Validate a skill name does not contain path traversal components.
+ * Throws if invalid.
+ */
+function assertSafeSkillName(name) {
+    const resolved = path.resolve(SKILLS_DIR, name);
+    if (!resolved.startsWith(SKILLS_DIR + path.sep) && resolved !== SKILLS_DIR) {
+        throw new Error(`Invalid skill name "${name}" - path traversal detected.`);
+    }
+}
 /** Import a skill into the vault */
 export function importSkill(input) {
     const reg = readRegistry();
@@ -38,7 +48,14 @@ export function importSkill(input) {
             message: `Skill "${input.name}" already exists in vault (source: ${existing.sourceType}:${existing.sourceRef}). Remove it first or use a different name.`,
         };
     }
-    const skillDir = path.join(SKILLS_DIR, input.name);
+    let skillDir;
+    try {
+        assertSafeSkillName(input.name);
+        skillDir = path.join(SKILLS_DIR, input.name);
+    }
+    catch (e) {
+        return { success: false, message: e.message };
+    }
     if (fs.existsSync(skillDir)) {
         // Clean up orphaned directory
         fs.rmSync(skillDir, { recursive: true, force: true });
@@ -82,9 +99,15 @@ export function removeSkill(name) {
     }
     const skill = reg.skills[idx];
     // Delete skill directory
-    const skillDir = path.join(SKILLS_DIR, name);
-    if (fs.existsSync(skillDir)) {
-        fs.rmSync(skillDir, { recursive: true, force: true });
+    try {
+        assertSafeSkillName(name);
+        const skillDir = path.join(SKILLS_DIR, name);
+        if (fs.existsSync(skillDir)) {
+            fs.rmSync(skillDir, { recursive: true, force: true });
+        }
+    }
+    catch {
+        // name validation failed — skip directory deletion
     }
     reg.skills.splice(idx, 1);
     writeRegistry(reg);
