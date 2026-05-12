@@ -58,7 +58,7 @@ export default function skillManager(pi: ExtensionAPI) {
           if (content) {
             const result = importSkill({ name, content, description, sourceType, sourceRef: ref || 'direct' });
             return {
-              content: [{ type: 'text', text: formatResult(result) }],
+              content: [{ type: 'text', text: formatMessage(result) }],
               details: { result },
             };
           }
@@ -96,7 +96,7 @@ export default function skillManager(pi: ExtensionAPI) {
             sourceRef: ref,
           });
           return {
-            content: [{ type: 'text', text: formatResult(result) }],
+            content: [{ type: 'text', text: formatMessage(result) }],
             details: { result },
           };
         }
@@ -118,7 +118,7 @@ export default function skillManager(pi: ExtensionAPI) {
           }
           const actResult = activateSkill(name, vaultSkill.vaultPath, scope, projectDir);
           return {
-            content: [{ type: 'text', text: formatActivateResult(actResult) }],
+            content: [{ type: 'text', text: formatMessage(actResult) }],
             details: { result: actResult },
           };
         }
@@ -133,7 +133,7 @@ export default function skillManager(pi: ExtensionAPI) {
           }
           const deactResult = deactivateSkill(name, scope, projectDir);
           return {
-            content: [{ type: 'text', text: formatActivateResult(deactResult) }],
+            content: [{ type: 'text', text: formatMessage(deactResult) }],
             details: { result: deactResult },
           };
         }
@@ -188,7 +188,7 @@ export default function skillManager(pi: ExtensionAPI) {
           deactivateSkill(name, 'project', projectDir);
           const rmResult = removeSkill(name);
           return {
-            content: [{ type: 'text', text: formatResult(rmResult) }],
+            content: [{ type: 'text', text: formatMessage(rmResult) }],
             details: { result: rmResult },
           };
         }
@@ -233,10 +233,6 @@ export default function skillManager(pi: ExtensionAPI) {
 
 // ── Formatting helpers ─────────────────────────────────────────────
 
-function formatResult(result: { success: boolean; message: string }): string {
-  return result.success ? `✅ ${result.message}` : `❌ ${result.message}`;
-}
-
-function formatActivateResult(result: { success: boolean; message: string }): string {
+function formatMessage(result: { success: boolean; message: string }): string {
   return result.success ? `✅ ${result.message}` : `❌ ${result.message}`;
 }
