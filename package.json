@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "vitest run"
   },
   "dependencies": {
     "gray-matter": "^4.0.3"
@@ -20,7 +21,8 @@
     "@earendil-works/pi-coding-agent": "*",
     "@mariozechner/pi-ai": "*",
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.6"
   },
   "pi": {
     "extensions": [
