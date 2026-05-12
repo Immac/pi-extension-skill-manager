@@ -1,0 +1,33 @@
+{
+  "name": "skill-manager",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "A skill manager for pi — manages skills in a vault, imports from multiple sources, activates/deactivates at user and project level.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "pi": {
+    "extensions": [
+      "./src/skill-manager.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  }
+}
