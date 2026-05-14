@@ -42,6 +42,13 @@ function writeSettings(filePath, data) {
  * Pi discovers skills from these paths directly — no symlinks needed.
  */
 export function activateSkill(skillName, vaultPath, scope, projectDir) {
+    // Verify the vault path exists before activating
+    if (!fs.existsSync(vaultPath)) {
+        return {
+            success: false,
+            message: `Skill directory not found at ${vaultPath}. Import the skill first.`,
+        };
+    }
     const settingsFile = settingsPath(scope, projectDir);
     const settings = readSettings(settingsFile);
     const skills = settings.skills ?? [];

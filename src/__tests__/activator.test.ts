@@ -1,8 +1,36 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { activateSkill, deactivateSkill, listActiveSkills } from '../activator.js';
+
+// Mock homedir so user-scope operations go to /tmp/ instead of ~/.pi/agent/settings.json
+const testHome = vi.hoisted(() => {
+  const p = require('node:path');
+  return p.join('/tmp', `sm-test-activator-${Date.now()}`);
+});
+vi.mock('node:os', () => {
+  const m = {
+    homedir: () => testHome,
+    tmpdir: () => '/tmp',
+    platform: () => 'linux',
+    release: () => '1.0.0',
+    type: () => 'Linux',
+    arch: () => 'x64',
+    hostname: () => 'test',
+    userInfo: () => ({ username: 'test', uid: -1, gid: -1, shell: null, homedir: testHome }),
+    EOL: '\n' as const,
+    cpus: () => [],
+    freemem: () => 0,
+    totalmem: () => 0,
+    loadavg: () => [0, 0, 0],
+    uptime: () => 0,
+    networkInterfaces: () => ({}),
+    constants: {},
+    version: () => '',
+  };
+  return { default: m, ...m };
+});
 
 describe('activator.ts — activate/deactivate/list', () => {
   const tmpDir = path.join(os.tmpdir(), `sm-test-${Date.now()}`);
@@ -129,6 +157,15 @@ describe('activator.ts — activate/deactivate/list', () => {
       // Project scope should be empty now
       const projectActive = listActiveSkills('project', tmpDir);
       expect(projectActive).toHaveLength(0);
+    });
+  });
+
+  // ── Vault path validation ─────────────────────────────────────
+  describe('vault path validation', () => {
+    it('should fail activation when vault path does not exist', () => {
+      const result = activateSkill('ghost-skill', '/nonexistent/vault/path', 'project', tmpDir);
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('not found');
     });
   });
 

@@ -1,8 +1,36 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { kbSource } from '../sources/kb-source.js';
+
+// Mock homedir so the "global KB" fallback goes to /tmp/ instead of ~/.pi/knowledge-base/
+const testHome = vi.hoisted(() => {
+  const p = require('node:path');
+  return p.join('/tmp', `sm-test-kb-${Date.now()}`);
+});
+vi.mock('node:os', () => {
+  const m = {
+    homedir: () => testHome,
+    tmpdir: () => '/tmp',
+    platform: () => 'linux',
+    release: () => '1.0.0',
+    type: () => 'Linux',
+    arch: () => 'x64',
+    hostname: () => 'test',
+    userInfo: () => ({ username: 'test', uid: -1, gid: -1, shell: null, homedir: testHome }),
+    EOL: '\n' as const,
+    cpus: () => [],
+    freemem: () => 0,
+    totalmem: () => 0,
+    loadavg: () => [0, 0, 0],
+    uptime: () => 0,
+    networkInterfaces: () => ({}),
+    constants: {},
+    version: () => '',
+  };
+  return { default: m, ...m };
+});
 
 describe('kb-source.ts — fetch from KB articles', () => {
   const tmpDir = path.join(os.tmpdir(), `sm-test-kb-${Date.now()}`);

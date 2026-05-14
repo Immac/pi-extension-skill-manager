@@ -57,6 +57,14 @@ export function activateSkill(
   scope: ActivateScope,
   projectDir?: string,
 ): ActivateResult {
+  // Verify the vault path exists before activating
+  if (!fs.existsSync(vaultPath)) {
+    return {
+      success: false,
+      message: `Skill directory not found at ${vaultPath}. Import the skill first.`,
+    };
+  }
+
   const settingsFile = settingsPath(scope, projectDir);
   const settings = readSettings(settingsFile);
 

@@ -34,6 +34,7 @@ Single unified tool with actions:
 | Action | Description |
 |--------|-------------|
 | `import` | Bring a skill into the vault from a source (path, kb, or direct content) |
+| `update` | Replace vault skill content/metadata in-place (preserves activation) |
 | `activate` | Add vault skill path to `settings.json` `skills[]` array |
 | `deactivate` | Remove vault skill path from `settings.json` `skills[]` array |
 | `list` | Show vault contents + activation status across both scopes |
@@ -75,6 +76,12 @@ skill_manager action:deactivate name:"my-analyzer" scope:user
 
 # List everything
 skill_manager action:list
+
+# Update (re-import) an existing skill in-place from source
+skill_manager action:update name:"my-analyzer" source:path ref:"./my-skill/SKILL.md"
+
+# Update with direct content
+skill_manager action:update name:"my-analyzer" content:"---\nname: my-analyzer\n...\n"
 
 # Remove from vault (also deactivates everywhere)
 skill_manager action:remove name:"my-analyzer"

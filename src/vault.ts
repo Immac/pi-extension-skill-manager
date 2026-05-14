@@ -3,23 +3,45 @@ import path from 'node:path';
 import os from 'node:os';
 import type { VaultRegistry, VaultSkill, VaultResult, ImportSkillInput } from './types.js';
 
-const VAULT_DIR = path.join(os.homedir(), '.skill-manager');
-const SKILLS_DIR = path.join(VAULT_DIR, 'skills');
-const REGISTRY_PATH = path.join(VAULT_DIR, 'registry.json');
+// Global vault (default — no projectDir)
+export const GLOBAL_VAULT_DIR = path.join(os.homedir(), '.skill-manager');
+export const GLOBAL_SKILLS_DIR = path.join(GLOBAL_VAULT_DIR, 'skills');
+export const GLOBAL_REGISTRY_PATH = path.join(GLOBAL_VAULT_DIR, 'registry.json');
+
+// Backward-compat aliases
+export const VAULT_DIR = GLOBAL_VAULT_DIR;
+export const SKILLS_DIR = GLOBAL_SKILLS_DIR;
+export const REGISTRY_PATH = GLOBAL_REGISTRY_PATH;
 
 const REGISTRY_VERSION = 1;
 
-function ensureVault(): void {
-  if (!fs.existsSync(SKILLS_DIR)) {
-    fs.mkdirSync(SKILLS_DIR, { recursive: true });
+/**
+ * Resolve vault paths based on scope.
+ * When projectDir is provided, uses <projectDir>/.skill-manager/.
+ * Otherwise uses the global ~/.skill-manager/.
+ */
+function resolvePaths(projectDir?: string) {
+  const root = projectDir
+    ? path.resolve(projectDir, '.skill-manager')
+    : path.join(os.homedir(), '.skill-manager');
+  return {
+    vaultDir: root,
+    skillsDir: path.join(root, 'skills'),
+    registryPath: path.join(root, 'registry.json'),
+  };
+}
+
+function ensureVault(skillsDir: string): void {
+  if (!fs.existsSync(skillsDir)) {
+    fs.mkdirSync(skillsDir, { recursive: true });
   }
 }
 
-function readRegistry(): VaultRegistry {
-  ensureVault();
+function readRegistry(registryPath: string, skillsDir: string): VaultRegistry {
+  ensureVault(skillsDir);
   try {
-    if (fs.existsSync(REGISTRY_PATH)) {
-      const raw = fs.readFileSync(REGISTRY_PATH, 'utf-8');
+    if (fs.existsSync(registryPath)) {
+      const raw = fs.readFileSync(registryPath, 'utf-8');
       return JSON.parse(raw);
     }
   } catch {
@@ -28,25 +50,26 @@ function readRegistry(): VaultRegistry {
   return { version: REGISTRY_VERSION, skills: [] };
 }
 
-function writeRegistry(reg: VaultRegistry): void {
-  ensureVault();
-  fs.writeFileSync(REGISTRY_PATH, JSON.stringify(reg, null, 2), 'utf-8');
+function writeRegistry(registryPath: string, skillsDir: string, reg: VaultRegistry): void {
+  ensureVault(skillsDir);
+  fs.writeFileSync(registryPath, JSON.stringify(reg, null, 2), 'utf-8');
 }
 
 /**
  * Validate a skill name does not contain path traversal components.
  * Throws if invalid.
  */
-function assertSafeSkillName(name: string): void {
-  const resolved = path.resolve(SKILLS_DIR, name);
-  if (!resolved.startsWith(SKILLS_DIR + path.sep) && resolved !== SKILLS_DIR) {
+function assertSafeSkillName(name: string, skillsDir: string): void {
+  const resolved = path.resolve(skillsDir, name);
+  if (!resolved.startsWith(skillsDir + path.sep) && resolved !== skillsDir) {
     throw new Error(`Invalid skill name "${name}" - path traversal detected.`);
   }
 }
 
 /** Import a skill into the vault */
-export function importSkill(input: ImportSkillInput): VaultResult {
-  const reg = readRegistry();
+export function importSkill(input: ImportSkillInput, projectDir?: string): VaultResult {
+  const { skillsDir, registryPath } = resolvePaths(projectDir);
+  const reg = readRegistry(registryPath, skillsDir);
 
   // Check for duplicate
   const existing = reg.skills.find(s => s.name === input.name);
@@ -59,8 +82,8 @@ export function importSkill(input: ImportSkillInput): VaultResult {
 
   let skillDir: string;
   try {
-    assertSafeSkillName(input.name);
-    skillDir = path.join(SKILLS_DIR, input.name);
+    assertSafeSkillName(input.name, skillsDir);
+    skillDir = path.join(skillsDir, input.name);
   } catch (e) {
     return { success: false, message: (e as Error).message };
   }
@@ -100,7 +123,7 @@ export function importSkill(input: ImportSkillInput): VaultResult {
   };
 
   reg.skills.push(skill);
-  writeRegistry(reg);
+  writeRegistry(registryPath, skillsDir, reg);
 
   return {
     success: true,
@@ -109,9 +132,72 @@ export function importSkill(input: ImportSkillInput): VaultResult {
   };
 }
 
+/** Update a skill in the vault (replace content and metadata, preserving vault location) */
+export function updateSkill(input: ImportSkillInput, projectDir?: string): VaultResult {
+  const { skillsDir, registryPath } = resolvePaths(projectDir);
+  const reg = readRegistry(registryPath, skillsDir);
+
+  // Check it exists
+  const existing = reg.skills.find(s => s.name === input.name);
+  if (!existing) {
+    return {
+      success: false,
+      message: `Skill "${input.name}" not found in vault. Import it first.`,
+    };
+  }
+
+  let skillDir: string;
+  try {
+    assertSafeSkillName(input.name, skillsDir);
+    skillDir = path.join(skillsDir, input.name);
+  } catch (e) {
+    return { success: false, message: (e as Error).message };
+  }
+
+  if (!fs.existsSync(skillDir)) {
+    return {
+      success: false,
+      message: `Skill directory for "${input.name}" not found (expected ${skillDir}). Remove and re-import.`,
+    };
+  }
+
+  // Write updated SKILL.md
+  const skillPath = path.join(skillDir, 'SKILL.md');
+  fs.writeFileSync(skillPath, input.content, 'utf-8');
+
+  // Write updated SOURCE.json
+  const sourceMeta = {
+    name: input.name,
+    description: input.description || '',
+    sourceType: input.sourceType,
+    sourceRef: input.sourceRef,
+    importedAt: existing.installedAt,
+    updatedAt: Date.now(),
+  };
+  fs.writeFileSync(
+    path.join(skillDir, 'SOURCE.json'),
+    JSON.stringify(sourceMeta, null, 2),
+    'utf-8',
+  );
+
+  // Update registry entry
+  existing.description = input.description || '';
+  existing.sourceType = input.sourceType;
+  existing.sourceRef = input.sourceRef;
+
+  writeRegistry(registryPath, skillsDir, reg);
+
+  return {
+    success: true,
+    message: `Updated skill "${input.name}" in vault (source: ${input.sourceType}:${input.sourceRef})`,
+    skill: existing,
+  };
+}
+
 /** Remove a skill from the vault */
-export function removeSkill(name: string): VaultResult {
-  const reg = readRegistry();
+export function removeSkill(name: string, projectDir?: string): VaultResult {
+  const { skillsDir, registryPath } = resolvePaths(projectDir);
+  const reg = readRegistry(registryPath, skillsDir);
   const idx = reg.skills.findIndex(s => s.name === name);
   if (idx === -1) {
     return { success: false, message: `Skill "${name}" not found in vault.` };
@@ -121,8 +207,8 @@ export function removeSkill(name: string): VaultResult {
 
   // Delete skill directory
   try {
-    assertSafeSkillName(name);
-    const skillDir = path.join(SKILLS_DIR, name);
+    assertSafeSkillName(name, skillsDir);
+    const skillDir = path.join(skillsDir, name);
     if (fs.existsSync(skillDir)) {
       fs.rmSync(skillDir, { recursive: true, force: true });
     }
@@ -131,7 +217,7 @@ export function removeSkill(name: string): VaultResult {
   }
 
   reg.skills.splice(idx, 1);
-  writeRegistry(reg);
+  writeRegistry(registryPath, skillsDir, reg);
 
   return {
     success: true,
@@ -141,18 +227,20 @@ export function removeSkill(name: string): VaultResult {
 }
 
 /** List all skills in the vault */
-export function listVaultSkills(): VaultSkill[] {
-  const reg = readRegistry();
+export function listVaultSkills(projectDir?: string): VaultSkill[] {
+  const { registryPath, skillsDir } = resolvePaths(projectDir);
+  const reg = readRegistry(registryPath, skillsDir);
   return reg.skills;
 }
 
 /** Get a single skill by name */
-export function getVaultSkill(name: string): VaultSkill | undefined {
-  const reg = readRegistry();
+export function getVaultSkill(name: string, projectDir?: string): VaultSkill | undefined {
+  const { registryPath, skillsDir } = resolvePaths(projectDir);
+  const reg = readRegistry(registryPath, skillsDir);
   return reg.skills.find(s => s.name === name);
 }
 
 /** Check if a skill with this name already exists */
-export function skillExists(name: string): boolean {
-  return getVaultSkill(name) !== undefined;
+export function skillExists(name: string, projectDir?: string): boolean {
+  return getVaultSkill(name, projectDir) !== undefined;
 }
