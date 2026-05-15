@@ -99,7 +99,8 @@ export default function skillManager(pi: ExtensionAPI) {
         description: 'Optional description for import',
       })),
     }),
-    async execute(_toolCallId, params: any, _signal, _onUpdate, ctx: any) {
+    async execute(_toolCallId, params: any, signal, _onUpdate, ctx: any) {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Aborted by caller' }], details: {}, isError: true };
       const action = (params.action as string || '').toLowerCase();
       const name = params.name as string | undefined;
       const sourceType = (params.source as string || 'path') as SourceType;
