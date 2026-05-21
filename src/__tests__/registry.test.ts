@@ -27,11 +27,12 @@ describe('sources/registry.ts', () => {
 
   it('registerSource adds a new source adapter', () => {
     const mockAdapter = {
-      type: 'test' as const,
-      fetch: async () => null,
+      type: 'test' as any,
+      fetch: () => null,
       label: 'Test Source',
+      refDescription: 'A test ref',
     };
     registerSource(mockAdapter);
-    expect(getSource('test')).toBe(mockAdapter);
+    expect(getSource('test' as any)).toBe(mockAdapter);
   });
 });

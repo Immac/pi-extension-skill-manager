@@ -93,7 +93,9 @@ export default function skillManager(pi) {
                 description: 'Optional description for import',
             })),
         }),
-        async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+        async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+            if (signal?.aborted)
+                return { content: [{ type: 'text', text: 'Aborted by caller' }], details: {}, isError: true };
             const action = (params.action || '').toLowerCase();
             const name = params.name;
             const sourceType = (params.source || 'path');

@@ -76,7 +76,7 @@ export const kbSource = {
                     return {
                         name: String(innerParsed.data.name),
                         description: innerParsed.data.description ? String(innerParsed.data.description) : '',
-                        content: outerParsed.content,
+                        content: outerParsed.content.trimStart(),
                     };
                 }
                 return null;
@@ -84,10 +84,17 @@ export const kbSource = {
             // `content` is the body after stripping outer frontmatter.
             // It may contain inner frontmatter for the SKILL.md itself —
             // that's the frontmatter pi's skill loader expects.
+            //
+            // Trim leading whitespace: gray-matter leaves a `\n` between the
+            // outer frontmatter closing `---` and the inner content. Without
+            // trimming, the SKILL.md starts with a blank line, so frontmatter
+            // parsers miss the inner YAML block entirely (name + description
+            // would be lost, causing "description is required" on activation).
+            const skillContent = outerParsed.content.trimStart();
             return {
                 name: String(name),
                 description: description ? String(description) : '',
-                content: outerParsed.content,
+                content: skillContent,
             };
         }
         catch {
